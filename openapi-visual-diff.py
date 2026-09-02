@@ -17,6 +17,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 METHODS = ("get", "put", "post", "delete", "options", "head", "patch", "trace")
@@ -598,14 +599,37 @@ new MutationObserver(() => {
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("old")
-    ap.add_argument("new")
+    ap.add_argument("old", nargs="?", help="base spec (omit when --base is given)")
+    ap.add_argument("new", nargs="?", help="revision (omit when --base is given)")
     ap.add_argument("-o", "--out", default="openapi-diff.html")
+    ap.add_argument("--base", metavar="REF",
+                    help="git revision to diff the working tree against, e.g. a "
+                         "merge-base — the pipeline entry point")
+    ap.add_argument("--spec", default="openapi.yaml",
+                    help="spec path inside the repo, used with --base")
     ap.add_argument("--label-old", help="label for the base spec (default: filename)")
     ap.add_argument("--label-new", help="label for the revision (default: filename)")
     args = ap.parse_args()
 
-    old, new = Path(args.old), Path(args.new)
+    tmp = None
+    if args.base:
+        # A spec that did not exist at the base is an empty one, not a crash: a branch
+        # that introduces the API should render as one big "added", not as an error.
+        tmp = tempfile.TemporaryDirectory()
+        old = Path(tmp.name) / "base.yaml"
+        blob = subprocess.run(["git", "show", f"{args.base}:{args.spec}"],
+                              capture_output=True, text=True)
+        old.write_text(blob.stdout if blob.returncode == 0
+                       else "openapi: 3.0.0\ninfo: {title: '', version: ''}\npaths: {}\n")
+        new = Path(args.spec)
+        if not new.is_file():
+            sys.exit(f"no spec at {new}")
+        args.label_old = args.label_old or args.base
+        args.label_new = args.label_new or "working tree"
+    elif args.old and args.new:
+        old, new = Path(args.old), Path(args.new)
+    else:
+        ap.error("give two spec files, or --base REF")
     changes = run_oasdiff(old, new)
     merged, entries, global_changes, tags = build_model(
         load_spec(old), load_spec(new), changes)

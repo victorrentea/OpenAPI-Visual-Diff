@@ -46,11 +46,16 @@ An argument that exists as a file is used as-is; anything else is treated as a
 git revision. `-f <path>` picks the spec when auto-detection guesses wrong,
 `-o <path>` sets the output, `-n` skips opening the browser.
 
-The generator underneath takes two files and nothing else:
+The generator underneath takes two files, or a git revision to diff the working tree
+against — the form a review pipeline calls:
 
 ```bash
 ./openapi-visual-diff.py old.yaml new.yaml -o diff.html --label-old A --label-new B
+./openapi-visual-diff.py --base "$MERGE_BASE" --spec openapi.yaml -o diff.html
 ```
+
+With `--base`, a spec that did not exist at that revision is treated as an empty one, not
+as a crash: a branch that introduces the API renders as one big "added".
 
 The output is a single self-contained HTML file (Swagger UI itself comes from
 cdnjs, so viewing it needs network; everything else is inlined).
