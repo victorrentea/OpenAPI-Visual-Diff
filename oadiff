@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# oadiff — visual OpenAPI diff straight out of git history.
+#
+#   oadiff                      # spec at HEAD  vs the working copy
+#   oadiff HEAD~5               # spec at HEAD~5 vs the working copy
+#   oadiff HEAD~5 HEAD          # two commits
+#   oadiff origin/main          # what this branch does to the API
+#   oadiff old.yaml new.yaml    # two plain files
+#
+# Options:
+#   -f <path>   spec file inside the repo (default: auto-detected)
+#   -o <path>   output HTML (default: a temp file)
+#   -n          don't open the result in the browser
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SPEC="" ; OUT="" ; OPEN=1
+
+while getopts ":f:o:nh" opt; do
+  case $opt in
+    f) SPEC="$OPTARG" ;;
+    o) OUT="$OPTARG" ;;
+    n) OPEN=0 ;;
+    h) sed -n '2,16p' "$0" | sed 's/^# \?//' ; exit 0 ;;
+    *) echo "unknown option -$OPTARG" >&2 ; exit 2 ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+die() { echo "oadiff: $*" >&2; exit 1; }
+command -v oasdiff >/dev/null || die "oasdiff not found — brew install oasdiff"
+
+# --- locate the spec (only needed when an argument is a git rev) -------------
+find_spec() {
+  local root; root="$(git rev-parse --show-toplevel 2>/dev/null)" || return 1
+  local c
+  for c in openapi.yaml openapi.yml openapi.json \
+           api/openapi.yaml docs/openapi.yaml src/main/resources/openapi.yaml; do
+    [[ -f "$root/$c" ]] && { echo "$c"; return 0; }
+  done
+  # last resort: the only tracked file that looks like one
+  c="$(git -C "$root" ls-files '*openapi*.yaml' '*openapi*.yml' '*openapi*.json' | head -2)"
+  [[ "$(wc -l <<<"$c")" -eq 1 && -n "$c" ]] && { echo "$c"; return 0; }
+  return 1
+}
+
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+
+# Materialise one side: a real file is used as-is, anything else is a git rev.
+resolve() {
+  local arg="$1" out="$2"
+  if [[ -f "$arg" ]]; then
+    cp "$arg" "$out"; echo "$(basename "$arg")"; return
+  fi
+  [[ -n "$SPEC" ]] || SPEC="$(find_spec)" || die "can't find the spec — pass -f <path>"
+  git show "$arg:$SPEC" > "$out" 2>/dev/null || die "no '$SPEC' at revision '$arg'"
+  echo "$arg"
+}
+
+case $# in
+  0) OLD_REF="HEAD" ; NEW_REF="" ;;
+  1) OLD_REF="$1"   ; NEW_REF="" ;;
+  2) OLD_REF="$1"   ; NEW_REF="$2" ;;
+  *) die "expected at most 2 arguments; see -h" ;;
+esac
+
+OLD_LABEL="$(resolve "$OLD_REF" "$TMP/old.yaml")"
+
+if [[ -z "$NEW_REF" ]]; then
+  # the working copy — the version you are about to commit
+  [[ -n "$SPEC" ]] || SPEC="$(find_spec)" || die "can't find the spec — pass -f <path>"
+  root="$(git rev-parse --show-toplevel)"
+  [[ -f "$root/$SPEC" ]] || die "no working copy of '$SPEC'"
+  cp "$root/$SPEC" "$TMP/new.yaml"
+  NEW_LABEL="working copy"
+else
+  NEW_LABEL="$(resolve "$NEW_REF" "$TMP/new.yaml")"
+fi
+
+[[ -n "$OUT" ]] || OUT="$TMP/../openapi-diff-$$.html"
+
+python3 "$HERE/openapi-visual-diff.py" "$TMP/old.yaml" "$TMP/new.yaml" \
+  -o "$OUT" --label-old "$OLD_LABEL" --label-new "$NEW_LABEL"
+
+[[ $OPEN -eq 1 ]] && open "$OUT"
+exit 0
