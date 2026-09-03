@@ -9,6 +9,16 @@ It renders the **new** spec in real Swagger UI (from CDN), then:
 - gives every impacted one a coloured spine + badge — 🔴 breaking, 🟠 modified,
   🟢 added, ⚪️ removed,
 - prints the concrete changes under each operation summary, in oasdiff's words,
+- **`expand impacted` opens the way down to each changed field**, not just the
+  operation: it walks the response (or request) schema through every array and
+  object between the root and the property oasdiff named, and highlights the leaf
+  where it lands. A field added to a schema four levels down — `items → pets →
+  items → visits → items → vetId` — is otherwise reachable only by opening the
+  operation, switching to the *Schema* tab and expanding four nodes by hand, which
+  is exactly how a change goes unreviewed. Siblings stay collapsed: it opens the
+  path, not the world. Anything it cannot open — a removed property, a chain past
+  its depth bound — is counted in a line under the operation rather than passed
+  over in silence,
 - grafts **removed** operations back in from the old spec (struck through), so a
   deleted endpoint still gets a row instead of silently vanishing,
 - collects non-endpoint changes (components, servers, security) in a box on top.
@@ -70,6 +80,31 @@ URL from those (`Failed to construct 'URL'`). So the generator expands every
 internal `$ref` itself, keeping the schema name in `title` so the UI still shows
 `OwnerDto` rather than an anonymous object, and cutting recursive references
 with a stub. Swagger UI then has nothing left to look up.
+
+## How `expand impacted` finds a field it has never rendered
+
+oasdiff names the property it changed as a slash path in its own prose —
+`items/pets/items/visits/items/vetId`, where `items` is an array descent and
+anything else is an object property. The generator resolves that path against the
+already-dereferenced schema and ships the page a list of steps to walk, so the
+ancestor chain is known **before** anything renders. Nothing is discovered by
+expanding and looking: Swagger UI rebuilds a collapsed subtree from scratch, so
+state read out of the rendered tree is gone the moment it re-renders.
+
+Two things make this fussier than it sounds. Swagger UI renders a collapsed node
+as an empty `<div>` — the children do not exist in the DOM until the parent is
+open — so ancestors are opened strictly in order and each step *waits* for the
+node it asked for. And Swagger UI has **two** schema renderers: a 3.1 spec gets
+the JSON-Schema-2020-12 tree of `<article>`s, a 3.0 spec gets the older
+`<span class="model">` boxes. Same page, same Swagger UI, entirely different DOM,
+so each gets its own walker and the root decides which is in play.
+
+A path is only walked when it resolves against the real schema. A property that is
+*gone* from the revision being rendered has nowhere to point, a chain longer than
+12 steps is refused whole rather than walked halfway, and no more than 12 leaves
+per operation are opened (most severe first). Every field left shut is counted in
+a line under the operation — a tree that quietly opens 12 of 30 fields is the same
+lie as one that opens none, only harder to notice.
 
 ## Why oasdiff underneath
 
