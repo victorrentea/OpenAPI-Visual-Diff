@@ -492,6 +492,7 @@ TEMPLATE = r"""<!doctype html>
   .dv-chip.off { opacity: .38; }
   .dv-chip .dot { width: 9px; height: 9px; border-radius: 50%; }
   .dv-chip b { font-variant-numeric: tabular-nums; }
+  .dv-unit { opacity: .6; margin-right: 2px; }
   .dot.breaking { background: var(--dv-breaking); }
   .dot.modified { background: var(--dv-modified); }
   .dot.added    { background: var(--dv-added); }
@@ -785,6 +786,12 @@ function md(s) {
 // ---- toolbar chips double as filters ----
 const hidden = new Set();
 const chips = document.getElementById('dv-chips');
+// The chips count endpoints, one per operation; the verdict line under the tab counts
+// the individual changes inside them. Without the unit "4 breaking" up here and
+// "14 breaking" down there read as two answers to the same question.
+if (ORDER.some(state => DATA.counts[state])) {
+  chips.insertAdjacentHTML('beforeend', '<span class="dv-unit">endpoints:</span>');
+}
 ORDER.forEach(state => {
   const n = DATA.counts[state] || 0;
   if (!n) return;
@@ -1124,9 +1131,17 @@ new MutationObserver(() => {
 // that scrolls internally traps the wheel and hides how much is left. Report our real
 // height instead and let the host size the frame — the outer page keeps the only
 // scrollbar. Cross-origin over file://, so it goes by postMessage, not by reading us.
+//
+// The height of the *content*, never of the viewport. `documentElement.scrollHeight` is
+// at least the viewport, and the viewport of a frame is whatever the host last set it
+// to from the number we posted, plus the few pixels it adds for the border: post that
+// and the host grows the frame, `resize` fires, we measure the taller viewport, post
+// again, and the frame creeps down the page four pixels at a time for as long as the
+// tab is open. The body's own box (margin 0, height auto) is the content and nothing
+// else, and does not move when the frame around it does.
 function postHeight() {
   if (window.parent === window) return;
-  const h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+  const h = Math.ceil(document.body.getBoundingClientRect().height);
   if (h !== window.__dvH) {
     window.__dvH = h;
     window.parent.postMessage({ type: 'dv-height', height: h }, '*');
