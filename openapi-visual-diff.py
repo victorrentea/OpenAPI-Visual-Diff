@@ -217,7 +217,8 @@ MAX_REVEAL_DEPTH = 12    # steps down one schema; deeper is left closed and said
 MAX_REVEAL_PER_OP = 12   # leaves opened per operation, most severe first
 
 BACKTICKED = re.compile(r"`([^`]+)`")
-RESPONSE_STATUS = re.compile(r"with the `(\d{3})` status")
+# oasdiff words the status both ways: "with the `200` status" and "for status `200`".
+RESPONSE_STATUS = re.compile(r"`(\d{3})` status|status `(\d{3})`")
 
 
 def first_media_schema(content) -> dict | None:
@@ -283,8 +284,9 @@ def change_target(op: dict, change: dict) -> dict | None:
         found = RESPONSE_STATUS.search(text)
         if not found:
             return None
-        schema = response_schema(op, found.group(1))
-        where = {"in": "response", "status": found.group(1)}
+        status = found.group(1) or found.group(2)
+        schema = response_schema(op, status)
+        where = {"in": "response", "status": status}
     else:
         return None
     if not isinstance(schema, dict):
@@ -584,6 +586,13 @@ def build_model(old_spec: dict, new_spec: dict, changes: list):
             # an added endpoint's only "change" is that it exists — no need to say it
             if not (state == "added" and c["id"] == "endpoint-added")
         ]
+        # A ghost wears the severity of the line that reports it: removing an optional
+        # field is info, removing a required one is breaking, and the row drawn where the
+        # field used to stand must not say otherwise. A ghost no line claims stays grey.
+        for c in listed:
+            if c["ghost"] is not None:
+                g = ghosts[c["ghost"]]
+                g["level"] = max(g.get("level", 0), c["level"])
         # The cap is spent on the most severe first (the list is already in that order),
         # because a reader who can only be shown twelve fields wants the breaking ones.
         budget, skipped = MAX_REVEAL_PER_OP, 0
@@ -915,21 +924,25 @@ TEMPLATE = r"""<!doctype html>
   }
 
   /* ---------- ghosts: what the new spec no longer has ----------
-     Drawn where the removed thing used to stand, in the breaking red, struck through,
-     with a solid DELETED chip in the same shape as the ADDED/CHANGED chip on a live
-     field -- so "deleted" reads as one more value of the same marker, not as a second
-     vocabulary. Every colour is a theme var; the chip's text is the page background, which
+     Drawn where the removed thing used to stand, struck through, in the colour of the
+     severity oasdiff gave the removal (breaking red, warning orange, info grey), with a
+     solid DELETED chip in the same shape as the ADDED/CHANGED chip on a live field -- so
+     "deleted" reads as one more value of the same marker, not as a second vocabulary.
+     Every colour is a theme var; the chip's text is the page background, which
      is what keeps it legible on the pale dark-mode red as well as the deep light-mode one.
      A ghost's children are the old shape it can be opened into: struck through too, but
      in the quieter --dv-removed grey, so one deleted object does not paint a red wall. */
+  [data-dv-ghost] { --dv-ghost: var(--dv-removed); }
+  [data-dv-ghost].dv-ghost-l2 { --dv-ghost: var(--dv-modified); }
+  [data-dv-ghost].dv-ghost-l3 { --dv-ghost: var(--dv-breaking); }
   .dv-ghost {
     font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     color: var(--dv-fg);
   }
   .dv-ghost.dv-ghost-top {
     margin: 3px 0; padding: 2px 8px 2px 6px; border-radius: 5px;
-    border-left: 3px dashed var(--dv-breaking);
-    background: color-mix(in srgb, var(--dv-breaking) 9%, transparent);
+    border-left: 3px dashed var(--dv-ghost);
+    background: color-mix(in srgb, var(--dv-ghost) 9%, transparent);
   }
   /* `.swagger-ui summary { display: list-item }` would win over a bare class and glue
      every chip of a head together ("petsarray<PetDto>"), hence the scope. */
@@ -948,17 +961,17 @@ TEMPLATE = r"""<!doctype html>
   summary.dv-ghost-head::before { content: "\25B8"; transition: transform .12s ease; }
   details.dv-ghost[open] > summary.dv-ghost-head::before { transform: rotate(90deg); }
   .dv-ghost-name {
-    font-weight: 700; color: var(--dv-breaking);
+    font-weight: 700; color: var(--dv-ghost);
     text-decoration: line-through; text-decoration-thickness: 1.5px;
   }
-  .dv-ghost-req { color: var(--dv-breaking); margin-left: -6px; }
+  .dv-ghost-req { color: var(--dv-ghost); margin-left: -6px; }
   .dv-ghost-type {
     font-weight: 600; color: var(--dv-removed); text-decoration: line-through;
   }
   .dv-ghost-mark {
     font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
     padding: 2px 7px; border-radius: 4px; flex: none;
-    background: var(--dv-breaking); color: var(--dv-bg);
+    background: var(--dv-ghost); color: var(--dv-bg);
   }
   .dv-ghost-note { font-size: 12px; font-style: italic; color: var(--dv-muted); }
   .dv-ghost-desc {
@@ -1665,7 +1678,11 @@ function ghostRow(cells) {
 
 function placeGhost(op, g, i) {
   if (op.querySelector(`[data-dv-ghost="${i}"]`)) return;
-  const tag = el => { el.dataset.dvGhost = i; return el; };
+  const tag = el => {
+    el.dataset.dvGhost = i;
+    el.classList.add('dv-ghost-l' + (g.level || 0));
+    return el;
+  };
   if (g.kind === 'prop') {
     const got = walkVisible(op, g, g.steps);
     if (!got || got.kit.collapsed(got.node)) return;
@@ -1684,7 +1701,7 @@ function placeGhost(op, g, i) {
         }
       }
       const li = tag(document.createElement('li'));
-      li.className = 'dv-ghost-li';
+      li.classList.add('dv-ghost-li');
       li.dataset.dvGhostName = g.name;
       li.appendChild(ghost);
       const prev = g.after && ([...ul.children].find(x => x.dataset.dvGhostName === g.after)
