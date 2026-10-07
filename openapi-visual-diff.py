@@ -696,6 +696,11 @@ TEMPLATE = r"""<!doctype html>
     --dv-attr:  #5555aa;
     /* A collapsed controller's name, and every expand/collapse arrow. */
     --dv-collapsed: #6b6b78;
+    /* The toolbar, and the INFO / WARN words on the note list. The toolbar was near-black
+       in both schemes -- a dark band across a light page -- and the dark-green INFO read
+       2.4:1 on a dark card (UX review, 7 Oct 2026). */
+    --dv-bar-bg: #e9ebf1; --dv-bar-fg: #1c1c22; --dv-bar-chip: rgba(0,0,0,.06);
+    --dv-bar-chip-hover: rgba(0,0,0,.12); --dv-lvl1: #1f7a45; --dv-lvl2: #9a5b06;
   }
   /* System theme by default; ?theme=dark|light pins it (embedded: `data-theme` on the
      host), which is what an embedding page uses when it wants us to match, not guess. */
@@ -706,6 +711,8 @@ TEMPLATE = r"""<!doctype html>
       --dv-bg: #15151a; --dv-fg: #e8e8ef; --dv-muted: #9a9aa8;
       --dv-line: #2c2c36; --dv-card: #1d1d24; --dv-code: rgba(255,255,255,.10);
       --dv-dim: #82828e; --dv-attr: #97a9ee; --dv-collapsed: #8b8f99;
+      --dv-bar-bg: #1b1b1f; --dv-bar-fg: #eaeaea; --dv-bar-chip: rgba(255,255,255,.08);
+      --dv-bar-chip-hover: rgba(255,255,255,.16); --dv-lvl1: #4ade80; --dv-lvl2: #e0a44a;
     }
   }
   :root[data-theme="dark"], :host([data-theme="dark"]) {
@@ -714,6 +721,8 @@ TEMPLATE = r"""<!doctype html>
     --dv-bg: #15151a; --dv-fg: #e8e8ef; --dv-muted: #9a9aa8;
     --dv-line: #2c2c36; --dv-card: #1d1d24; --dv-code: rgba(255,255,255,.10);
     --dv-dim: #82828e; --dv-attr: #97a9ee; --dv-collapsed: #8b8f99;
+    --dv-bar-bg: #1b1b1f; --dv-bar-fg: #eaeaea; --dv-bar-chip: rgba(255,255,255,.08);
+    --dv-bar-chip-hover: rgba(255,255,255,.16); --dv-lvl1: #4ade80; --dv-lvl2: #e0a44a;
   }
   body { margin: 0; background: var(--dv-bg); color: var(--dv-fg);
          color-scheme: light dark; }
@@ -742,19 +751,22 @@ TEMPLATE = r"""<!doctype html>
     position: sticky; top: var(--dv-sticky-top, 0px); z-index: 50;
     display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
     padding: 5px 20px;
-    background: #1b1b1f; color: #eaeaea;
+    background: var(--dv-bar-bg); color: var(--dv-bar-fg);
     font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    box-shadow: 0 2px 10px rgba(0,0,0,.25);
+    box-shadow: 0 2px 10px rgba(0,0,0,.12);
   }
   .dv-bar h1 { font-size: 14px; margin: 0 8px 0 0; font-weight: 600; letter-spacing: .01em; }
   .dv-chip {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 1px 10px; border-radius: 999px;
-    background: rgba(255,255,255,.08); cursor: pointer; user-select: none;
+    background: var(--dv-bar-chip); cursor: pointer; user-select: none;
     border: 1px solid transparent;
   }
-  .dv-chip:hover { background: rgba(255,255,255,.16); }
-  .dv-chip.off { opacity: .38; }
+  .dv-chip:hover { background: var(--dv-bar-chip-hover); }
+  /* Filtered out: faded to .6 (at .38 "42 untouched" read 2.97:1) and its dot hollow, so
+     the state is said by the mark as well as by the strength. */
+  .dv-chip.off { opacity: .6; }
+  .dv-chip.off .dot { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; }
   .dv-chip .dot { width: 9px; height: 9px; border-radius: 50%; }
   .dv-chip b { font-variant-numeric: tabular-nums; }
   .dv-unit { opacity: .6; margin-right: 2px; }
@@ -766,7 +778,7 @@ TEMPLATE = r"""<!doctype html>
   .dv-spacer { flex: 1; }
   .dv-toggle {
     display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
-    padding: 1px 10px; border-radius: 6px; background: rgba(255,255,255,.08);
+    padding: 1px 10px; border-radius: 6px; background: var(--dv-bar-chip);
   }
   .dv-toggle input { accent-color: #7aa2f7; margin: 0; }
 
@@ -794,12 +806,15 @@ TEMPLATE = r"""<!doctype html>
     text-transform: uppercase; padding: 1px 6px; border-radius: 4px; margin-top: 1px;
   }
   .dv-change.l3 .lvl { background: rgba(215,38,61,.12); color: var(--dv-breaking); }
-  .dv-change.l2 .lvl { background: rgba(217,130,24,.14); color: #9a5b06; }
-  .dv-change.l1 .lvl { background: rgba(46,158,91,.12); color: #1f7a45; }
+  .dv-change.l2 .lvl { background: rgba(217,130,24,.14); color: var(--dv-lvl2); }
+  .dv-change.l1 .lvl { background: rgba(46,158,91,.12); color: var(--dv-lvl1); }
 
   .dv-badge {
     font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
     padding: 2px 8px; border-radius: 4px; margin-left: 8px; color: #fff; flex: none;
+    /* One width for "1 change" and "3 changes", so the chevron left of it holds still
+       from one endpoint to the next (it moved 7px). */
+    display: inline-block; min-width: 80px; text-align: center; box-sizing: border-box;
   }
   .dv-badge.breaking { background: var(--dv-breaking); }
   .dv-badge.modified { background: var(--dv-modified); }
