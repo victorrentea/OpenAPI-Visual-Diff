@@ -1746,7 +1746,23 @@ async function revealTarget(op, c, run) {
 
 // Open the tree down to the node `steps` names -- and that node too when `openLast`, which
 // is what a removed property needs: its ghost row lives inside its parent's body.
-async function openTo(op, where, steps, run, openLast) {
+// Booted on "Schema" (`defaultModelRendering: 'model'`), an `array<object>` response body's
+// `Items` node ignores its own toggle: it stays collapsed however often it is clicked, and
+// a walk through it gave up ("could not be opened") on 9 of test-pr's 25 changes. The same
+// tree drawn again by a tab switch -- Example Value, then Schema -- opens normally, which
+// is the path the walk always took before the page opened on Schema. So once per walk.
+async function redrawSchema(host) {
+  const tab = name => [...host.querySelectorAll('.tab li button')]
+    .find(b => b.textContent.trim() === name);
+  const example = tab('Example Value');
+  if (!example) return false;
+  example.click();
+  await waitFor(() => example.getAttribute('aria-selected') === 'true', STEP_WAIT);
+  tab('Schema')?.click();
+  return !!(await openSchemaTree(host));
+}
+
+async function openTo(op, where, steps, run, openLast, redrawn) {
   // An opblock gets its <div class="opblock-body"> before it has a responses table, so
   // asking for the response row the instant the operation opens finds nothing. Wait for
   // the row itself, not for the box it will eventually appear in.
@@ -1759,15 +1775,17 @@ async function openTo(op, where, steps, run, openLast) {
   const { kit } = found;
   let cur = found.root;
   const chain = [];
+  const again = async () => !redrawn && run === revealRun && await redrawSchema(host)
+    ? openTo(op, where, steps, run, openLast, true) : null;
   for (const step of steps) {
     if (run !== revealRun) return null;         // the reader changed their mind
-    if (!await openNode(kit, cur)) return null;
+    if (!await openNode(kit, cur)) return again();
     const next = await waitFor(() => kit.child(cur, step), STEP_WAIT);
     if (!next) return null;
     chain.push(kit.mark(cur));
     cur = next;
   }
-  if (openLast && !await openNode(kit, cur)) return null;
+  if (openLast && !await openNode(kit, cur)) return again();
   return { kit, node: cur, chain };
 }
 
