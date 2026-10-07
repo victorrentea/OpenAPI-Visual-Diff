@@ -694,6 +694,8 @@ TEMPLATE = r"""<!doctype html>
        paints an `x-` extension in, `attr` the blue it paints a type attribute in. */
     --dv-dim:   #8a8a95;
     --dv-attr:  #5555aa;
+    /* A collapsed controller's name, and every expand/collapse arrow. */
+    --dv-collapsed: #6b6b78;
   }
   /* System theme by default; ?theme=dark|light pins it (embedded: `data-theme` on the
      host), which is what an embedding page uses when it wants us to match, not guess. */
@@ -703,7 +705,7 @@ TEMPLATE = r"""<!doctype html>
       --dv-removed: #9aa0aa;
       --dv-bg: #15151a; --dv-fg: #e8e8ef; --dv-muted: #9a9aa8;
       --dv-line: #2c2c36; --dv-card: #1d1d24; --dv-code: rgba(255,255,255,.10);
-      --dv-dim: #82828e; --dv-attr: #97a9ee;
+      --dv-dim: #82828e; --dv-attr: #97a9ee; --dv-collapsed: #8b8f99;
     }
   }
   :root[data-theme="dark"], :host([data-theme="dark"]) {
@@ -711,7 +713,7 @@ TEMPLATE = r"""<!doctype html>
     --dv-removed: #9aa0aa;
     --dv-bg: #15151a; --dv-fg: #e8e8ef; --dv-muted: #9a9aa8;
     --dv-line: #2c2c36; --dv-card: #1d1d24; --dv-code: rgba(255,255,255,.10);
-    --dv-dim: #82828e; --dv-attr: #97a9ee;
+    --dv-dim: #82828e; --dv-attr: #97a9ee; --dv-collapsed: #8b8f99;
   }
   body { margin: 0; background: var(--dv-bg); color: var(--dv-fg);
          color-scheme: light dark; }
@@ -990,12 +992,21 @@ TEMPLATE = r"""<!doctype html>
   .dv-hide-untouched .opblock-tag-section.dv-empty { display: none; }
   .swagger-ui .opblock-tag-section.dv-quiet > h3 { opacity: .4; }
 
-  /* operations read as children of their controller, not as siblings of it */
+  /* operations read as children of their controller, not as siblings of it -- by the
+     indent alone: the 2px spine that used to run down the left of each list was one
+     more line on a tab already full of coloured ones (Victor, 7 Oct 2026). */
   .swagger-ui .opblock-tag-section > div {
     margin-left: 6px;
     padding-left: 20px;
-    border-left: 2px solid var(--dv-line);
   }
+  /* Victor could not tell a collapsed controller from an open one: both headers were the
+     same full-strength text with the same dark arrow. A collapsed one now reads grey, and
+     the arrows are grey in both states, so the name is what carries open vs. closed. */
+  .swagger-ui .opblock-tag[data-is-open="false"],
+  .swagger-ui .opblock-tag[data-is-open="false"] :is(a, span, small, p, div) {
+    color: var(--dv-collapsed);
+  }
+  .swagger-ui .opblock-tag svg.arrow { fill: var(--dv-collapsed); }
 
   /* impacted operations get a coloured spine */
   .swagger-ui .opblock.dv-breaking { border-color: var(--dv-breaking);
