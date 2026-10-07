@@ -625,7 +625,7 @@ def change_total(entries: dict, global_changes: list) -> int:
     back into a single line — oasdiff alone counts that swap twice. An added operation
     lists no line (its only entry is that it exists) and still counts as one change.
     `openapi-compat.py` folds with the same `merge_pairs` before it counts, so the
-    verdict band above and the "expand N impacted" toggle here say one number."""
+    verdict band above and the "expand N changes" toggle here say one number."""
     return (sum(len(e["changes"]) or (1 if e["state"] == "added" else 0)
                 for e in entries.values()) + len(global_changes))
 
@@ -653,7 +653,10 @@ def render(model, entries, global_changes, tags, old_label, new_label) -> str:
     ).replace("</", "<\\/")
 
     n_changes = change_total(entries, global_changes)
-    label = f"expand {n_changes} impacted" if n_changes else "expand impacted"
+    # Victor, 7 Oct 2026 (Devoxx): "it should say expand 25 changes" — the number is the
+    # verdict band's count of changes, so the toggle names them changes, not "impacted".
+    label = (f"expand {n_changes} change{'' if n_changes == 1 else 's'}" if n_changes
+             else "expand changes")
     return (TEMPLATE.replace("__EXPAND_LABEL__", label)
             .replace("__TIP_JS__", _tip_js())
             .replace("__PAYLOAD__", payload))

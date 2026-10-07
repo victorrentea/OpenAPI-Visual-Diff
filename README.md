@@ -9,7 +9,7 @@ It renders the **new** spec in real Swagger UI (from CDN), then:
 - gives every impacted one a coloured spine + badge — 🔴 breaking, 🟠 modified,
   🟢 added, ⚪️ removed,
 - prints the concrete changes under each operation summary, in oasdiff's words,
-- **`expand impacted` opens the way down to each changed field**, not just the
+- **`expand N changes` opens the way down to each changed field**, not just the
   operation: it walks the response (or request) schema through every array and
   object between the root and the property oasdiff named, and highlights the leaf
   where it lands. A field added to a schema four levels down — `items → pets →
@@ -87,7 +87,7 @@ internal `$ref` itself, keeping the schema name in `title` so the UI still shows
 `OwnerDto` rather than an anonymous object, and cutting recursive references
 with a stub. Swagger UI then has nothing left to look up.
 
-## How `expand impacted` finds a field it has never rendered
+## How `expand N changes` finds a field it has never rendered
 
 oasdiff names the property it changed as a slash path in its own prose —
 `items/pets/items/visits/items/vetId`, where `items` is an array descent and
