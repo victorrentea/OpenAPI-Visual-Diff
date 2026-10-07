@@ -1038,7 +1038,23 @@ TEMPLATE = r"""<!doctype html>
      there is nothing here anyone wants on their clipboard, and the icon sits exactly
      where the eye goes for the change badge. */
   .swagger-ui .copy-to-clipboard, .swagger-ui button.copy-to-clipboard { display: none; }
-  .swagger-ui .info { margin: 20px 0 12px; }
+  /* The spec's own masthead -- its title in 36px, its "this is the REST API documentation
+     of..." paragraph -- says nothing a reviewer of a diff needs (Victor, 7 Oct 2026: "useless").
+     The version alone survives, small, in the corner. */
+  .swagger-ui .information-container .info {
+    margin: 0; padding: 0; display: flex; justify-content: flex-end;
+  }
+  .swagger-ui .info hgroup.main { margin: 0; }
+  .swagger-ui .info .title { font-size: 0 !important; margin: 0; line-height: 1; }
+  .swagger-ui .info .title .version-stamp, .swagger-ui .info__description,
+  .swagger-ui .info .info__contact, .swagger-ui .info .info__license,
+  .swagger-ui .info .base-url { display: none !important; }
+  .swagger-ui .info .title small { top: 0; margin: 0; background: transparent; padding: 0; }
+  .swagger-ui .info .title small pre.version {
+    font: 11px/1.2 ui-monospace, Menlo, monospace; color: var(--dv-muted);
+    background: transparent; padding: 0;
+  }
+  .swagger-ui .info .title small pre.version::before { content: "v"; }
   /* Swagger UI's terms-of-service link: a contract detail for a consumer browsing the
      live docs, noise in a diff of two revisions. */
   .swagger-ui .info__tos { display: none; }
@@ -1192,6 +1208,123 @@ TEMPLATE = r"""<!doctype html>
   .swagger-ui .dv-desc-inline p + p::before { content: " "; }
   .swagger-ui .opblock.opblock-deprecated { opacity: .7; }
   .dv-count-hidden { font-size: 12px; opacity: .6; }
+
+  /* ---------- an operation read as a diff, not as a console (Victor, 7 Oct 2026) ----------
+     The controller header is a band, so the eye finds where one controller ends. */
+  .swagger-ui .opblock-tag, .swagger-ui .opblock-tag:hover {
+    background: color-mix(in srgb, var(--dv-attr) 15%, var(--dv-card)) !important;
+    border: 0 !important; border-left: 4px solid var(--dv-attr) !important;
+    border-radius: 6px; padding: 6px 12px !important; margin: 14px 0 8px !important;
+    font-size: 18px;
+  }
+  .swagger-ui .opblock-tag-section.dv-quiet > h3.opblock-tag {
+    background: color-mix(in srgb, var(--dv-collapsed) 10%, transparent) !important;
+    border-left-color: var(--dv-collapsed) !important;
+  }
+  /* Section headings are labels, not bars: `Parameters` and `Responses` in small caps. */
+  .swagger-ui .opblock .opblock-section-header {
+    background: transparent !important; box-shadow: none !important; border: 0 !important;
+    padding: 8px 20px 2px !important; min-height: 0 !important;
+  }
+  .swagger-ui .opblock .opblock-section-header h4,
+  .swagger-ui .opblock .opblock-section-header h4 span {
+    font-size: 11px !important; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--dv-muted) !important;
+  }
+  .swagger-ui .opblock .tab-header .tab-item.active h4 span:after { display: none; }
+  .swagger-ui .opblock .tab-header .tab-item { padding: 0; }
+  /* Parameters: one line each -- name, type, where, default. The input boxes are try-it
+     controls, and "No parameters" is a section that says it is empty. */
+  .swagger-ui .try-out, .swagger-ui .execute-wrapper, .swagger-ui .btn.try-out__btn {
+    display: none !important;
+  }
+  .swagger-ui .opblock-body .opblock-section:has(> .parameters-container > .opblock-description-wrapper) {
+    display: none;
+  }
+  .swagger-ui .parameters-container .table-container { padding: 2px 20px 4px !important; }
+  .swagger-ui .parameters-container table.parameters thead { display: none; }
+  .swagger-ui table.parameters > tbody > tr > td {
+    padding: 2px 0 !important; vertical-align: baseline;
+  }
+  .swagger-ui table.parameters .parameters-col_name {
+    width: auto; min-width: 0; padding-right: 16px !important; white-space: nowrap;
+  }
+  .swagger-ui table.parameters .parameter__name { display: inline; font-size: 13px; }
+  .swagger-ui table.parameters .parameter__type, .swagger-ui table.parameters .parameter__in,
+  .swagger-ui table.parameters .parameter__deprecated {
+    display: inline; padding: 0 0 0 6px; font-size: 11px; color: var(--dv-muted);
+  }
+  .swagger-ui table.parameters .parameters-col_description { width: 100%; }
+  .swagger-ui table.parameters .parameters-col_description :is(input, select, textarea, .parameter__enum),
+  .swagger-ui table.parameters .parameters-col_description .json-schema-form-item {
+    display: none !important;
+  }
+  .swagger-ui table.parameters .parameters-col_description .renderedMarkdown p,
+  .swagger-ui table.parameters .parameters-col_description p {
+    margin: 0; font-size: 12px; color: var(--dv-muted);
+  }
+  .swagger-ui table.parameters .parameter__default { display: inline-block; margin: 0; font-size: 12px; }
+  .swagger-ui table.parameters .parameter__default i { font-style: normal; }
+  /* Responses: a list of status lines that fold (see foldResponses), the Schema/Example
+     switch first, the media type under it, and none of the console chatter -- the green
+     "Controls Accept header.", the Code/Description/Links header, "No links", the
+     "Example Description" block. Swagger UI sizes this table with a 1px max-width cell;
+     as a grid, the description column takes the room it is given. */
+  .swagger-ui .responses-inner { padding: 2px 20px 8px !important; }
+  .swagger-ui .responses-table thead, .swagger-ui .responses-table .response-col_links { display: none; }
+  .swagger-ui table.responses-table, .swagger-ui table.responses-table > tbody {
+    display: block; width: 100%;
+  }
+  .swagger-ui .responses-table tr.response {
+    display: grid; grid-template-columns: 62px minmax(0, 1fr); align-items: start;
+    border-top: 1px solid var(--dv-line);
+  }
+  .swagger-ui .responses-table tr.response:first-child { border-top: 0; }
+  .swagger-ui .responses-table tr.response > td { padding: 4px 0 !important; border: 0; }
+  .swagger-ui .responses-table td.response-col_status {
+    white-space: nowrap; cursor: pointer; user-select: none; font-weight: 600;
+    min-width: 0 !important; max-width: none !important;
+  }
+  .swagger-ui .responses-table td.response-col_status::before {
+    content: "\25BE"; display: inline-block; width: 14px; color: var(--dv-collapsed);
+    transition: transform .12s ease;
+  }
+  .swagger-ui .responses-table tr.response.dv-folded td.response-col_status::before {
+    transform: rotate(-90deg);
+  }
+  .swagger-ui .responses-table .response-col_description__inner { cursor: pointer; }
+  .swagger-ui .responses-table .response-col_description__inner .renderedMarkdown p { margin: 0; }
+  .swagger-ui .responses-table tr.response.dv-folded td.response-col_description > :not(.response-col_description__inner) {
+    display: none !important;
+  }
+  .swagger-ui .responses-table tr.response.dv-folded .response-col_description__inner .renderedMarkdown p {
+    color: var(--dv-muted) !important;
+  }
+  .swagger-ui .responses-table td.response-col_description {
+    display: flex; flex-direction: column; gap: 4px;
+    min-width: 0 !important; width: auto !important; max-width: none !important;
+  }
+  .swagger-ui .responses-table td.response-col_description > * { order: 9; min-width: 0; max-width: 100%; }
+  .swagger-ui .responses-table td.response-col_description > .response-col_description__inner { order: 1; }
+  .swagger-ui .responses-table td.response-col_description > .model-example { display: contents; }
+  .swagger-ui .responses-table td.response-col_description > .model-example > ul.tab { order: 2; margin: 2px 0 0; }
+  .swagger-ui .responses-table td.response-col_description > .response-controls { order: 3; padding: 0; margin: 0; }
+  .swagger-ui .responses-table td.response-col_description > .model-example > [role=tabpanel] { order: 4; }
+  .swagger-ui .responses-table td.response-col_description > .example { display: none !important; }
+  .swagger-ui .response-control-media-type { display: flex; align-items: center; gap: 8px; margin: 0 !important; }
+  .swagger-ui .response-control-media-type__title { display: inline !important; font-size: 11px; color: var(--dv-muted); }
+  .swagger-ui .response-control-media-type__accept-message { display: none !important; }
+  .swagger-ui .response-controls select {
+    font-size: 12px !important; padding: 2px 26px 2px 8px !important; min-width: 0 !important;
+    border: 1px solid var(--dv-line) !important; box-shadow: none !important;
+    background-color: transparent;
+  }
+  .swagger-ui .response-control-media-type--accept-controller select {
+    outline: none !important; border-color: var(--dv-line) !important;
+  }
+  .swagger-ui td.response-col_description:has(ul.tab li:last-child.active) .response-control-examples { display: none; }
+  .swagger-ui .response-control-examples { display: flex; align-items: center; gap: 8px; }
+  .swagger-ui .response-control-examples__title { font-size: 11px; color: var(--dv-muted); }
 </style>
 </head>
 <body>
@@ -1373,9 +1506,54 @@ function decorate() {
   });
   apply();
   autoCollapse();
+  foldResponses();
   markVisible();
   layoutDescriptions();
 }
+
+// ---- a response is a line that folds ----
+// Every operation lists 200, 400, 404, 500 and each one used to unfold a whole body; the
+// error bodies are the same ProblemDetail on every endpoint ("usually boring", Victor,
+// 7 Oct 2026). A 2xx opens; any other status stays folded to its one line -- unless this
+// diff touched it, in which case it is the news and opens like a 2xx. Once the reader
+// folds or unfolds a line by hand, that choice sticks across Swagger UI's re-renders.
+const foldedByHand = new Map();
+function responseKey(tr) {
+  return keyOf(tr.closest('.opblock')) + '|' + tr.dataset.code;
+}
+function responseChanged(op, tr) {
+  const code = tr.dataset.code;
+  const info = DATA.ops[keyOf(op)];
+  const hit = t => t && t.in === 'response' && String(t.status) === code;
+  if (info && (info.changes.some(c => hit(c.target)) || (info.ghosts || []).some(hit))) {
+    return true;
+  }
+  // A change with no field to walk to (a status added, a media type swapped) still names
+  // its status in the prose line; and whatever got marked on the tree is a change too.
+  if (tr.querySelector('.dv-hit, .dv-fieldmark, .dv-ghost')) return true;
+  return [...op.querySelectorAll('.dv-note .dv-change code')]
+    .some(el => el.textContent.trim() === code);
+}
+function foldResponses() {
+  root.querySelectorAll('.swagger-ui .opblock .responses-table tr.response[data-code]')
+    .forEach(tr => {
+      const k = responseKey(tr);
+      const open = foldedByHand.has(k) ? !foldedByHand.get(k)
+        : /^2/.test(tr.dataset.code) || responseChanged(tr.closest('.opblock'), tr);
+      if (tr.classList.contains('dv-folded') === open) tr.classList.toggle('dv-folded', !open);
+    });
+}
+function setFolded(tr, folded) {
+  foldedByHand.set(responseKey(tr), folded);
+  tr.classList.toggle('dv-folded', folded);
+}
+root.addEventListener('click', e => {
+  const cell = e.target.closest && e.target.closest(
+    '.responses-table tr.response > td.response-col_status, '
+    + '.responses-table tr.response .response-col_description__inner');
+  const tr = cell && cell.closest('tr.response[data-code]');
+  if (tr) setFolded(tr, !tr.classList.contains('dv-folded'));
+});
 
 // A controller nobody touched is folded away on arrival — once, so that
 // re-expanding one by hand sticks.
@@ -1521,7 +1699,8 @@ function schemaHost(op, t) {
     r.querySelector('.response-col_status')?.textContent.trim() === t.status) || null;
 }
 
-// Swagger UI opens a response on "Example Value"; the tree lives behind "Schema". A spec
+// Booted with `defaultModelRendering: 'model'` a body opens on "Schema" already; this
+// stays for one the reader switched to "Example Value" by hand. A spec
 // with no example has no tab strip at all and shows the model directly, so a missing
 // button is not a failure.
 async function openSchemaTree(host) {
@@ -1570,6 +1749,8 @@ async function openTo(op, where, steps, run, openLast) {
   // the row itself, not for the box it will eventually appear in.
   const host = await waitFor(() => schemaHost(op, where), STEP_WAIT);
   if (!host) return null;
+  // A response line folded by hand is opened again: the reader asked to see the change.
+  if (host.matches('tr.response.dv-folded')) setFolded(host, false);
   const found = await openSchemaTree(host);
   if (!found) return null;
   const { kit } = found;
@@ -2034,6 +2215,9 @@ function boot() {
     domNode: root.getElementById('swagger-ui'),
     docExpansion: 'list',
     defaultModelsExpandDepth: -1,
+    // A diff is read for the shape of the payload, not for a made-up sample of it: every
+    // body opens on Schema (Victor, 7 Oct 2026). "Example Value" is one click away.
+    defaultModelRendering: 'model',
     tryItOutEnabled: false,
     supportedSubmitMethods: [],
     deepLinking: false,
