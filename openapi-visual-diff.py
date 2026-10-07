@@ -1220,9 +1220,11 @@ TEMPLATE = r"""<!doctype html>
     border-radius: 6px; padding: 6px 12px !important; margin: 14px 0 8px !important;
     font-size: 18px;
   }
+  /* A quiet controller: grey name and rim on no band at all. That is what Victor approved
+     live on 7 Oct (the patch's tinted band never drew there: its variable was undefined). */
   .swagger-ui .opblock-tag-section.dv-quiet > h3.opblock-tag {
-    background: color-mix(in srgb, var(--dv-collapsed) 10%, transparent) !important;
-    border-left-color: var(--dv-collapsed) !important;
+    background: transparent !important;
+    border-left-color: currentColor !important;
   }
   /* Section headings are labels, not bars: `Parameters` and `Responses` in small caps. */
   .swagger-ui .opblock .opblock-section-header {
@@ -1289,7 +1291,7 @@ TEMPLATE = r"""<!doctype html>
     min-width: 0 !important; max-width: none !important;
   }
   .swagger-ui .responses-table td.response-col_status::before {
-    content: "\25BE"; display: inline-block; width: 14px; color: var(--dv-collapsed);
+    content: "\25BE"; display: inline-block; width: 14px; color: inherit;
     transition: transform .12s ease;
   }
   .swagger-ui .responses-table tr.response.dv-folded td.response-col_status::before {
