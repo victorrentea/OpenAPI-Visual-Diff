@@ -796,7 +796,42 @@ TEMPLATE = r"""<!doctype html>
                   color: var(--dv-muted); margin: 0 0 8px; }
 
   /* ---------- per-operation annotations ---------- */
-  .dv-note { padding: 2px 0 10px; }
+  /* --- change list = a box with a folder tab ("N CHANGES") grown from its top-right corner --- */
+  .dv-note {
+    --R: 7px; --T: 21px; --c: var(--dv-modified);
+    --bd: color-mix(in srgb, var(--c) 80%, var(--dv-card));
+    --tint: color-mix(in srgb, var(--c) 9%, transparent);
+    position: relative; margin: 4px 12px 10px; padding: 4px 0 6px;
+    border: 1px solid var(--bd); border-top: 0; border-radius: 0 0 var(--R) var(--R);
+    background: var(--tint);
+  }
+  .dv-note.dv-s-breaking { --c: var(--dv-breaking); }
+  .dv-note.dv-s-added { --c: var(--dv-added); }
+  .dv-note.dv-s-removed { --c: var(--dv-removed); }
+  .dv-note > .dv-rail {
+    position: absolute; left: -1px; right: -1px; bottom: 100%; height: var(--T);
+    display: flex; align-items: flex-end; pointer-events: none;
+  }
+  .dv-rail-line {
+    flex: 1; height: var(--R); box-sizing: border-box; background: var(--tint);
+    border: 1px solid var(--bd); border-right: 0; border-bottom: 0; border-radius: var(--R) 0 0 0;
+  }
+  /* the join: a concave arc up from the box's top edge, then a convex one into the tab */
+  .dv-rail-fil {
+    flex: none; width: calc(2 * var(--R)); height: var(--T);
+    background:
+      radial-gradient(circle at 0 0, transparent var(--R), var(--bd) var(--R), var(--bd) calc(var(--R) + 1px), var(--tint) calc(var(--R) + 1px)) 0 var(--R) / calc(var(--R) + 1px) calc(2 * var(--R)) no-repeat,
+      radial-gradient(circle at 100% 100%, var(--tint) calc(var(--R) - 1px), var(--bd) calc(var(--R) - 1px), var(--bd) var(--R), transparent var(--R)) var(--R) 0 / var(--R) var(--R) no-repeat,
+      linear-gradient(var(--tint), var(--tint)) calc(var(--R) + 1px) var(--R) / calc(var(--R) - 1px) calc(2 * var(--R)) no-repeat;
+  }
+  .dv-rail > .dv-badge {
+    margin: 0; height: var(--T); min-width: 0; box-sizing: border-box; padding: 0 12px 4px 6px;
+    display: flex; align-items: center; background: var(--tint); color: color-mix(in srgb, var(--c) 62%, var(--dv-fg));
+    border: 1px solid var(--bd); border-left: 0; border-bottom: 0; border-radius: 0 var(--R) 0 0;
+    font-size: 10px; font-weight: 700; letter-spacing: .06em; white-space: nowrap;
+  }
+  .swagger-ui .opblock.is-open .opblock-summary { border-bottom: 0 !important; }
+  .opblock:has(.dv-rail) .opblock-summary > .dv-badge { display: none; }
   .dv-change {
     display: flex; gap: 8px; align-items: baseline;
     padding: 4px 14px 4px 12px; font-size: 13px; line-height: 1.45; color: var(--dv-fg);
@@ -1537,6 +1572,7 @@ function decorate() {
       ).join('') + (n ? `<div class="dv-deepmore">${n} more changed field${n > 1 ? 's are' : ' is'} not opened automatically — too deep, or gone from this revision. Use the schema's own “Expand all”.</div>` : '');
       summary.insertAdjacentElement('afterend', note);
     }
+    dressNote(op);
   });
   apply();
   autoCollapse();
@@ -1550,6 +1586,19 @@ function decorate() {
 function hideEmptyDefaults() {
   root.querySelectorAll('.parameter__default').forEach(d =>
     d.classList.toggle('dv-empty', /^Default value\s*:?$/.test(d.textContent.trim())));
+}
+
+// The "N CHANGES" badge becomes the tab of the box around the change lines (see .dv-rail).
+function dressNote(op) {
+  const note = op.querySelector('.dv-note');
+  const badge = op.querySelector('.opblock-summary .dv-badge, .dv-note .dv-badge');
+  if (!note || !badge || note.querySelector('.dv-rail')) return;
+  note.classList.add('dv-s-' + (badge.classList.contains('breaking') ? 'breaking' : 'modified'));
+  const rail = document.createElement('div');
+  rail.className = 'dv-rail';
+  rail.innerHTML = '<span class="dv-rail-line"></span><span class="dv-rail-fil"></span>';
+  rail.appendChild(badge);
+  note.prepend(rail);
 }
 
 // ---- a response is a line that folds ----
