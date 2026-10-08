@@ -1318,6 +1318,34 @@ TEMPLATE = r"""<!doctype html>
   .swagger-ui .responses-table td.response-col_description > .model-example > [role=tabpanel] { order: 4; }
   .swagger-ui .responses-table td.response-col_description > .example { display: none !important; }
   .swagger-ui .response-control-media-type { display: flex; align-items: center; gap: 8px; margin: 0 !important; }
+  /* --- API tab: status tints, one font size, carets at the left start (live-patch-api-status) --- */
+  .swagger-ui .responses-table td.response-col_status,
+  .swagger-ui .responses-table .response-col_description__inner .renderedMarkdown p {
+    font-size: 13px !important; font-weight: 600 !important; line-height: 20px;
+  }
+  .swagger-ui .responses-table td.response-col_status { padding-left: 6px !important; border-radius: 6px 0 0 6px; }
+  .swagger-ui .responses-table .response-col_description__inner { padding: 4px 8px !important; border-radius: 0 6px 6px 0; }
+  .swagger-ui .responses-table tr.response[data-code^="2"] :is(td.response-col_status, .response-col_description__inner) { background: rgba(46,160,67,.14); }
+  .swagger-ui .responses-table tr.response:is([data-code^="4"], [data-code^="5"]) :is(td.response-col_status, .response-col_description__inner) { background: rgba(248,81,73,.14); }
+  .swagger-ui .responses-table tr.response > td.response-col_description { padding-left: 0 !important; }
+  .swagger-ui .responses-table td.response-col_status::before,
+  .swagger-ui .opblock-tag .expand-operation::before,
+  .swagger-ui .opblock-control-arrow::before,
+  .swagger-ui .json-schema-2020-12-accordion__icon::before {
+    content: "\25BC"; font-size: 13px; line-height: 1; color: var(--dv-muted); transform: none; display: inline-block;
+  }
+  .swagger-ui .responses-table td.response-col_status::before { width: 18px; }
+  .swagger-ui .responses-table tr.response.dv-folded td.response-col_status::before,
+  .swagger-ui .opblock-tag[data-is-open="false"] .expand-operation::before,
+  .swagger-ui .opblock-control-arrow[aria-expanded="false"]::before,
+  .swagger-ui .json-schema-2020-12-accordion__icon--collapsed::before { content: "\25B6"; transform: none; }
+  .swagger-ui .opblock-tag .expand-operation { order: -1; margin: 0 8px 0 0 !important; width: auto; }
+  .swagger-ui .opblock-summary .opblock-control-arrow { order: -1; margin: 0 8px 0 4px !important; width: auto; }
+  .swagger-ui :is(.expand-operation, .opblock-control-arrow) svg,
+  .swagger-ui .json-schema-2020-12-accordion__icon svg { display: none; }
+  .swagger-ui .json-schema-2020-12-accordion { display: inline-flex !important; align-items: center; }
+  .swagger-ui .json-schema-2020-12-accordion__icon { order: -1; margin: 0 6px 0 0 !important; transform: none !important; width: auto !important; height: auto !important; display: inline-flex; font-size: 13px; }
+  .swagger-ui table.parameters .parameter__default.dv-empty { display: none !important; }
   .swagger-ui .response-control-media-type__title { display: inline !important; font-size: 11px; color: var(--dv-muted); }
   .swagger-ui .response-control-media-type__accept-message { display: none !important; }
   .swagger-ui .response-controls select {
@@ -1513,8 +1541,15 @@ function decorate() {
   apply();
   autoCollapse();
   foldResponses();
+  hideEmptyDefaults();
   markVisible();
   layoutDescriptions();
+}
+
+// Swagger prints "Default value :" even when the parameter has none.
+function hideEmptyDefaults() {
+  root.querySelectorAll('.parameter__default').forEach(d =>
+    d.classList.toggle('dv-empty', /^Default value\s*:?$/.test(d.textContent.trim())));
 }
 
 // ---- a response is a line that folds ----
