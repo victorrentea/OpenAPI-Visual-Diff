@@ -624,8 +624,9 @@ def change_total(entries: dict, global_changes: list) -> int:
     One row per line the reader sees, after `merge_pairs` folded each swapped media type
     back into a single line — oasdiff alone counts that swap twice. An added operation
     lists no line (its only entry is that it exists) and still counts as one change.
-    `openapi-compat.py` folds with the same `merge_pairs` before it counts, so the
-    verdict band above and the "expand N changes" toggle here say one number."""
+    `openapi-compat.py` folds with the same `merge_pairs` before it counts changes. The
+    verdict band above counts *endpoints* since 3806a78 ("11 endpoints changed"), so it
+    and the "expand N changes" toggle here are two numbers by design."""
     return (sum(len(e["changes"]) or (1 if e["state"] == "added" else 0)
                 for e in entries.values()) + len(global_changes))
 
