@@ -74,7 +74,7 @@ With `--base`, a spec that did not exist at that revision is treated as an empty
 as a crash: a branch that introduces the API renders as one big "added".
 
 The output is a single self-contained HTML file (Swagger UI itself comes from
-cdnjs, so viewing it needs network; everything else is inlined).
+jsdelivr, falling back to unpkg, so viewing it needs network; everything else is inlined).
 
 ## Why the spec is dereferenced
 
