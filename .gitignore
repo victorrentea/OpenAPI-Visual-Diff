@@ -1,3 +1,4 @@
 # generated reports
 *.html
 __pycache__/
+!docs/*.html

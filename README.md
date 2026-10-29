@@ -3,6 +3,8 @@
 A Swagger-UI-shaped visual diff of two OpenAPI specs — because everybody already
 knows how to read Swagger UI, and nobody wants to read a nested `<ul>`.
 
+**Live demo:** https://victorrentea.github.io/OpenAPI-Visual-Diff/ (petclinic's API across a few months of changes)
+
 It renders the **new** spec in real Swagger UI (from CDN), then:
 
 - **fades out** every endpoint the diff didn't touch (hover to read one anyway),
