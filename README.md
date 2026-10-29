@@ -8,8 +8,12 @@ It renders the **new** spec in real Swagger UI (from CDN), then:
 - **fades out** every endpoint the diff didn't touch (hover to read one anyway),
 - gives every impacted one a coloured spine + badge — 🔴 breaking, 🟠 modified,
   🟢 added, ⚪️ removed,
-- prints the concrete changes under each operation summary, in oasdiff's words,
-- **`expand N changes` opens the way down to each changed field**, not just the
+- prints the concrete changes under each operation summary, in oasdiff's words —
+  a `BREAKING` / `WARN` badge only where it matters (the rest is plain information,
+  so it carries no badge), and an arrow for the side of the call the change is on:
+  **→** the request (parameters, request body), **←** the response (status codes,
+  response body),
+- **`changes: expand N` opens the way down to each changed field**, not just the
   operation: it walks the response (or request) schema through every array and
   object between the root and the property oasdiff named, and highlights the leaf
   where it lands. A field added to a schema four levels down — `items → pets →
@@ -39,6 +43,8 @@ order with `data-dv-host="<host id>"` on the inline one. The script works agains
 instead of the document, reads the view from the host's `data-hash` (`#only-touched`) and
 the theme from its `data-theme`, and pins its toolbar `--dv-sticky-top` below the window's
 top edge (set it to the height of your own pinned header). The bundle may be loaded `defer`.
+Embedded, the bar drops the spec's version (the host page is expected to say it) and offers a
+`<slot name="prov">` at its right end for the host's own credit line for the spec.
 
 ## Usage
 
@@ -87,7 +93,7 @@ internal `$ref` itself, keeping the schema name in `title` so the UI still shows
 `OwnerDto` rather than an anonymous object, and cutting recursive references
 with a stub. Swagger UI then has nothing left to look up.
 
-## How `expand N changes` finds a field it has never rendered
+## How `expand N` finds a field it has never rendered
 
 oasdiff names the property it changed as a slash path in its own prose —
 `items/pets/items/visits/items/vetId`, where `items` is an array descent and

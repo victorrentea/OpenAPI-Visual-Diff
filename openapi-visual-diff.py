@@ -301,6 +301,18 @@ def change_target(op: dict, change: dict) -> dict | None:
     return None
 
 
+def change_side(cid: str) -> str | None:
+    """Which side of the call a change is on, off oasdiff's own rule id — the same reading
+    `change_target` makes: `request` (parameters, request body) or `response` (status
+    codes, response body, media types). None for a change that is neither: an endpoint
+    added or removed, a path-level change. Drawn as the row's → or ←."""
+    if "request" in cid:
+        return "request"
+    if "response" in cid:
+        return "response"
+    return None
+
+
 def change_mark(cid: str) -> str:
     """The word that goes on the leaf, in the differ's own vocabulary."""
     if "removed" in cid:
@@ -578,7 +590,8 @@ def build_model(old_spec: dict, new_spec: dict, changes: list):
             # below still reads oasdiff's own wording to work out which backticked token
             # is the schema path.
             {"text": rephrase(c["text"]), "level": c["level"], "id": c["id"],
-             "mark": change_mark(c["id"]), "target": change_target(op_obj, c),
+             "mark": change_mark(c["id"]), "side": change_side(c["id"]),
+             "target": change_target(op_obj, c),
              "ghost": change_ghost(c, ghosts)}
             for c in sorted(ch, key=lambda c: -c["level"])
             # an added endpoint's only "change" is that it exists — no need to say it
@@ -656,8 +669,9 @@ def render(model, entries, global_changes, tags, old_label, new_label) -> str:
     n_changes = change_total(entries, global_changes)
     # Victor, 7 Oct 2026 (Devoxx): "it should say expand 25 changes" — the number is the
     # verdict band's count of changes, so the toggle names them changes, not "impacted".
-    label = (f"expand {n_changes} change{'' if n_changes == 1 else 's'}" if n_changes
-             else "expand changes")
+    # Since 29 Oct 2026 the toggle sits after a `changes:` label, the way the chips sit
+    # after `endpoints:`, so the noun is the label's and the toggle keeps the number.
+    label = f"expand {n_changes}" if n_changes else "expand"
     return (TEMPLATE.replace("__EXPAND_LABEL__", label)
             .replace("__TIP_JS__", _tip_js())
             .replace("__PAYLOAD__", payload))
@@ -685,6 +699,7 @@ TEMPLATE = r"""<!doctype html>
     --dv-breaking: #d7263d;
     --dv-modified: #d98218;
     --dv-added:    #2e9e5b;
+    --dv-side-in:  #2e9e5b; --dv-side-out: #2f6fbf;
     --dv-removed:  #8a8f98;
     /* palette shared with the Human Review report, so an embedded diff doesn't
        announce itself as a foreign document */
@@ -711,6 +726,7 @@ TEMPLATE = r"""<!doctype html>
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]), :host(:not([data-theme="light"])) {
       --dv-breaking: #f0757f; --dv-modified: #e0a44a; --dv-added: #6fce93;
+      --dv-side-in: #6fce93; --dv-side-out: #7aa7e8;
       --dv-removed: #9aa0aa;
       --dv-bg: #15151a; --dv-fg: #e8e8ef; --dv-muted: #9a9aa8;
       --dv-line: #2c2c36; --dv-card: #1d1d24; --dv-code: rgba(255,255,255,.10);
@@ -721,6 +737,7 @@ TEMPLATE = r"""<!doctype html>
   }
   :root[data-theme="dark"], :host([data-theme="dark"]) {
     --dv-breaking: #f0757f; --dv-modified: #e0a44a; --dv-added: #6fce93;
+    --dv-side-in: #6fce93; --dv-side-out: #7aa7e8;
     --dv-removed: #9aa0aa;
     --dv-bg: #15151a; --dv-fg: #e8e8ef; --dv-muted: #9a9aa8;
     --dv-line: #2c2c36; --dv-card: #1d1d24; --dv-code: rgba(255,255,255,.10);
@@ -744,6 +761,11 @@ TEMPLATE = r"""<!doctype html>
      same numbers hold standalone (the top of the body) and embedded (wherever the host
      page put us). */
   #dv-app { position: relative; }
+  /* Swagger UI's stylesheet insets its `.wrapper` (padding 0 20px, max-width 1460px), and
+     the bar above sits outside it: embedded, the controller groups started 20px in on
+     both sides of a bar that spans the column (Victor, 29 Oct 2026). Embedded only — the
+     host's column is the margin; standalone the window edge needs that gutter. */
+  :host .swagger-ui .wrapper { padding: 0; max-width: none; }
 
   /* ---------- toolbar ---------- */
   .dv-bar {
@@ -779,6 +801,7 @@ TEMPLATE = r"""<!doctype html>
   .dot.added    { background: var(--dv-added); }
   .dot.removed  { background: var(--dv-removed); }
   .dot.untouched{ background: #4a4a52; }
+  .dv-group { display: inline-flex; align-items: center; white-space: nowrap; }
   .dv-spacer { flex: 1; }
   .dv-toggle {
     display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
@@ -849,7 +872,16 @@ TEMPLATE = r"""<!doctype html>
   /* A property path is one unbroken word — `items/pets/items/visits/items/vetFirstName` —
      and a flex item will not shrink below its longest word, so on a phone the row pushed
      the whole page 60px sideways. The text may break anywhere, the badge never. */
-  .dv-change > span:not(.lvl) { min-width: 0; overflow-wrap: anywhere; }
+  .dv-change > span:not(.lvl):not(.lvl-col):not(.dv-side) { min-width: 0; overflow-wrap: anywhere; }
+  /* The badge's column: as wide as BREAKING (its hidden copy), whatever the row says. */
+  .dv-change .lvl-col { flex: none; display: inline-grid; }
+  .dv-change .lvl-col > .lvl { grid-area: 1 / 1; justify-self: start; }
+  .dv-change .lvl-col > .lvl-ghost { visibility: hidden; }
+  /* → request, ← response: one fixed-width column, the arrow alone in the side's hue. */
+  .dv-change .dv-side { flex: none; width: 1.1em; text-align: center; font-weight: 700;
+    cursor: default; }
+  .dv-change .dv-side.request { color: var(--dv-side-in); }
+  .dv-change .dv-side.response { color: var(--dv-side-out); }
   .dv-change code {
     background: var(--dv-code); padding: 1px 5px; border-radius: 4px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
@@ -1445,21 +1477,28 @@ TEMPLATE = r"""<!doctype html>
 <body>
 <div id="dv-app">
 <div class="dv-bar">
-  <h1>OpenAPI visual diff</h1>
+  <!-- "OpenAPI diff", not "visual diff" (Victor, 29 Oct 2026): the picture says it. -->
+  <h1>OpenAPI diff</h1>
   <!-- The spec's version, beside the title (Victor, 20 Oct 2026): on a line of its own
-       under the bar it cost a row for four characters. Filled in at boot from DATA.spec. -->
+       under the bar it cost a row for four characters. Filled in at boot from DATA.spec,
+       standalone only: embedded in the review, the verdict band above says it. -->
   <span class="dv-ver" id="dv-ver"></span>
   <!-- The pair of refs used to sit here, between the title and the chips. Embedded in the
        review -- which is how this page is read -- the masthead two inches above already
        says which branch is against which base, on every tab, and saying it again here
        only cost the chips their room. Standalone it is not lost: it is the tab title. -->
   <span id="dv-chips"></span>
-  <span class="dv-spacer"></span>
   <!-- No tooltip here on purpose: the checkbox demonstrates itself the moment it is
        ticked. The count is the verdict line's count: that line
        says "25 changes" right above this diff, and a toggle that opened 11 endpoints
-       with no number on it read as a second, contradicting tally. -->
-  <label class="dv-toggle"><input type="checkbox" id="dv-expand"> __EXPAND_LABEL__</label>
+       with no number on it read as a second, contradicting tally. Beside the endpoint
+       chips and labelled like them, `changes: [] expand 25` (Victor, 29 Oct 2026): the
+       two groups are the two units this bar counts in. -->
+  <span class="dv-group" id="dv-changes"><span class="dv-unit">changes:</span><label class="dv-toggle"><input type="checkbox" id="dv-expand"> __EXPAND_LABEL__</label></span>
+  <span class="dv-spacer"></span>
+  <!-- An embedding page projects its own credit for the spec here (the review's
+       "Generated from code  openapi.yaml"), styled by that page. Empty standalone. -->
+  <slot name="prov"></slot>
 </div>
 <div id="dv-global"></div>
 <div id="swagger-ui"></div>
@@ -1543,13 +1582,33 @@ ORDER.forEach(state => {
   chips.appendChild(el);
 });
 
+// ---- one endpoint's (or the global) list of changes ----
+// No INFO badge (Victor, 29 Oct 2026): what is not breaking is information, and saying so
+// on most rows only pushed every sentence right. A breaking (or warning) row keeps its
+// badge, in a column as wide as BREAKING — a hidden copy sizes it — so every sentence in
+// the list starts at one x; a list with no badge has no column. Then the side of the call
+// the change is on: → the request (parameters, body), ← the response (`side`, read off
+// oasdiff's rule id by the generator); nothing for a change that is neither.
+const SIDE = { request: ['\u2192', 'Request: what a client sends'],
+               response: ['\u2190', 'Response: what the API answers'] };
+function changeRows(list) {
+  const badged = list.some(c => c.level >= 2), sided = list.some(c => SIDE[c.side]);
+  return list.map(c => {
+    const word = c.level === 3 ? 'breaking' : c.level === 2 ? 'warn' : '';
+    const lvl = badged ? '<span class="lvl-col">' + (word ? `<span class="lvl">${word}</span>` : '')
+      + '<span class="lvl lvl-ghost" aria-hidden="true">breaking</span></span>' : '';
+    const s = SIDE[c.side];
+    const side = s ? `<span class="dv-side ${c.side}" data-tip="${s[1]}">${s[0]}</span>`
+      : sided ? '<span class="dv-side"></span>' : '';
+    return `<div class="dv-change l${c.level}">${lvl}${side}<span>${md(c.text)}</span></div>`;
+  }).join('');
+}
+
 // ---- non-path changes (components, servers, security...) ----
 if (DATA.global.length) {
   const box = root.getElementById('dv-global');
   box.className = 'dv-global';
-  box.innerHTML = '<h2>Outside the endpoints</h2>' + DATA.global.map(c =>
-    `<div class="dv-change l${c.level}"><span class="lvl">${c.level === 3 ? 'breaking' : c.level === 2 ? 'warn' : 'info'}</span><span>${md(c.text)}</span></div>`
-  ).join('');
+  box.innerHTML = '<h2>Outside the endpoints</h2>' + changeRows(DATA.global);
 }
 
 function keyOf(op) {
@@ -1619,9 +1678,7 @@ function decorate() {
       const note = document.createElement('div');
       note.className = 'dv-note';
       const n = info.deepSkipped || 0;
-      note.innerHTML = info.changes.map(c =>
-        `<div class="dv-change l${c.level}"><span class="lvl">${c.level === 3 ? 'breaking' : c.level === 2 ? 'warn' : 'info'}</span><span>${md(c.text)}</span></div>`
-      ).join('') + (n ? `<div class="dv-deepmore">${n} more changed field${n > 1 ? 's are' : ' is'} not opened automatically — too deep, or gone from this revision. Use the schema's own “Expand all”.</div>` : '');
+      note.innerHTML = changeRows(info.changes) + (n ? `<div class="dv-deepmore">${n} more changed field${n > 1 ? 's are' : ' is'} not opened automatically — too deep, or gone from this revision. Use the schema's own “Expand all”.</div>` : '');
       summary.insertAdjacentElement('afterend', note);
     }
     dressNote(op);
@@ -2386,7 +2443,7 @@ function boot() {
   booted = true;
   var ver = DATA.spec && DATA.spec.info && DATA.spec.info.version;
   const verEl = root.getElementById('dv-ver');
-  if (ver && verEl) verEl.textContent = 'v' + ver;
+  if (ver && verEl && !HOST) verEl.textContent = 'v' + ver;
   SwaggerUIBundle({
     spec: DATA.spec,   // already fully dereferenced by the generator
     domNode: root.getElementById('swagger-ui'),
@@ -2422,7 +2479,7 @@ function retryBundle() {
 function plainList() {
   if (booted) return;
   booted = true;
-  root.getElementById('dv-expand').closest('label').style.display = 'none';
+  root.getElementById('dv-changes').style.display = 'none';
   const ops = Object.entries(DATA.ops).filter(([, e]) => e.state !== 'untouched')
     .sort((a, b) => ORDER.indexOf(a[1].state) - ORDER.indexOf(b[1].state));
   const box = root.getElementById('swagger-ui');
@@ -2432,9 +2489,7 @@ function plainList() {
     + 'unreachable — offline?), so this is the plain list. Reload to try again.</p>'
     + ops.map(([key, e]) => `<div class="dv-plain-op"><span class="dot ${e.state}"></span>`
       + `<b>${md(key)}</b> · ${LABELS[e.state]}`
-      + e.changes.map(c =>
-        `<div class="dv-change l${c.level}"><span class="lvl">${c.level === 3 ? 'breaking' : c.level === 2 ? 'warn' : 'info'}</span><span>${md(c.text)}</span></div>`
-      ).join('') + '</div>').join('');
+      + changeRows(e.changes) + '</div>').join('');
 }
 // Standalone the bundle's tag above blocks, so it is already here. An embedding page may
 // load it `defer` instead -- a blocking download in the middle of its body would hold up
